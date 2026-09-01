@@ -6,7 +6,7 @@ final class ProxyManager: ObservableObject {
 
     nonisolated let proxyPort = 8888
 
-    @Published private(set) var isRunning = false
+    @Published private(set) var localProxyRunning = false
     @Published var error: String?
 
     private let certificateStore = CertificateAuthorityStore()
@@ -15,8 +15,24 @@ final class ProxyManager: ObservableObject {
 
     private init() { RuntimeLogger.info("APP", "Proxy", "初始化") }
 
+    /// 内置 VPN 模式下"运行中"指隧道已连接；其余模式指本地代理在监听。
+    var isRunning: Bool {
+        if ProxyRuntimeModeStore.shared.mode == .builtInVPN {
+            return BuiltInVPNManager.shared.isConnected
+        }
+        return localProxyRunning
+    }
+
     func start() async throws {
-        guard !isRunning else { return }
+        if ProxyRuntimeModeStore.shared.mode == .builtInVPN {
+            try await BuiltInVPNManager.shared.connect()
+            return
+        }
+        try await startLocalProxyIfNeeded()
+    }
+
+    func startLocalProxyIfNeeded() async throws {
+        guard !localProxyRunning else { return }
         RuntimeLogger.info("APP", "Proxy.start", "启动代理 127.0.0.1:8888")
         do {
             let authority = try certificateStore.ensure()
@@ -44,7 +60,7 @@ final class ProxyManager: ObservableObject {
             }
             guard result != 0 else { CoreBridge.flushLogs(category: "Proxy"); throw ProxyError.startFailed }
             proxyHandle = result
-            isRunning = true
+            localProxyRunning = true
             error = nil
             BackgroundKeepAlive.shared.start()
             CoreBridge.flushLogs(category: "Proxy")
@@ -57,9 +73,12 @@ final class ProxyManager: ObservableObject {
     }
 
     func stop() {
-        guard isRunning, proxyHandle != 0 else { return }
+        if ProxyRuntimeModeStore.shared.mode == .builtInVPN {
+            BuiltInVPNManager.shared.disconnect()
+        }
+        guard localProxyRunning, proxyHandle != 0 else { return }
         _ = wloccore_stopproxy(proxyHandle)
-        proxyHandle = 0; isRunning = false; error = nil
+        proxyHandle = 0; localProxyRunning = false; error = nil
         BackgroundKeepAlive.shared.stop()
         CoreBridge.flushLogs(category: "Proxy")
     }
@@ -67,13 +86,24 @@ final class ProxyManager: ObservableObject {
     @discardableResult
     func setCoords(lat: Double, lon: Double, enabled: Bool, accuracy: Int = 25) -> UInt64 {
         coordinateRevision &+= 1
-        wloccore_setpatchconfig(
-            CDouble(lat),
-            CDouble(lon),
-            enabled ? 1 : 0,
-            CInt(accuracy),
-            MotionSimulationStore.shared.isEnabled ? 1 : 0
-        )
+        let motionEnabled = MotionSimulationStore.shared.isEnabled
+        if ProxyRuntimeModeStore.shared.mode == .builtInVPN {
+            BuiltInVPNManager.shared.sendPatchConfig(
+                lat: lat,
+                lon: lon,
+                enabled: enabled,
+                accuracy: accuracy,
+                motionEnabled: motionEnabled
+            )
+        } else {
+            wloccore_setpatchconfig(
+                CDouble(lat),
+                CDouble(lon),
+                enabled ? 1 : 0,
+                CInt(accuracy),
+                motionEnabled ? 1 : 0
+            )
+        }
         RuntimeLogger.info("APP", "Proxy.coords", "写入坐标", details: [
             "revision": String(coordinateRevision),
             "enabled": String(enabled),
@@ -137,13 +167,27 @@ final class ProxyManager: ObservableObject {
     func applyMotionSimulation(_ enabled: Bool) {
         MotionSimulationStore.shared.setEnabled(enabled)
         let settings = WlocSettingsStore.load()
-        wloccore_setpatchconfig(
-            CDouble(settings?.latitude ?? 0),
-            CDouble(settings?.longitude ?? 0),
-            settings?.enabled == true ? 1 : 0,
-            CInt(settings?.accuracy ?? 25),
-            enabled ? 1 : 0
-        )
+        let lat = settings?.latitude ?? 0
+        let lon = settings?.longitude ?? 0
+        let locationEnabled = settings?.enabled == true
+        let accuracy = settings?.accuracy ?? 25
+        if ProxyRuntimeModeStore.shared.mode == .builtInVPN {
+            BuiltInVPNManager.shared.sendPatchConfig(
+                lat: lat,
+                lon: lon,
+                enabled: locationEnabled,
+                accuracy: accuracy,
+                motionEnabled: enabled
+            )
+        } else {
+            wloccore_setpatchconfig(
+                CDouble(lat),
+                CDouble(lon),
+                locationEnabled ? 1 : 0,
+                CInt(accuracy),
+                enabled ? 1 : 0
+            )
+        }
         RuntimeLogger.info("APP", "Proxy.motion", "运动状态模拟设置已更新", details: [
             "enabled": String(enabled)
         ])
@@ -152,7 +196,7 @@ final class ProxyManager: ObservableObject {
 
     func prepareCertificateDownloadURL() async -> URL? {
         do {
-            if !isRunning { try await start() }
+            try await startLocalProxyIfNeeded()
             guard let url = URL(string: "http://127.0.0.1:8888/cert") else {
                 error = "证书下载地址无效"
                 return nil

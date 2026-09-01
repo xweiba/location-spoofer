@@ -2,27 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>application-identifier</key>
+	<string>$(AppIdentifierPrefix)com.paopaolabs.location-spoofer.vpn</string>
+	<key>com.apple.developer.networking.networkextension</key>
+	<array>
+		<string>packet-tunnel-provider</string>
+	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.paopaolabs.location-spoofer</string>
 	</array>
-	<key>application-identifier</key>
-	<string>$(AppIdentifierPrefix)com.paopaolabs.location-spoofer</string>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)com.paopaolabs.location-spoofer</string>
 	</array>
 	<key>get-task-allow</key>
 	<true/>
-	<key>com.apple.developer.networking.wifi-info</key>
-	<true/>
-	<key>com.apple.developer.networking.vpn.api</key>
-	<array>
-		<string>allow-vpn</string>
-	</array>
-	<key>com.apple.developer.networking.networkextension</key>
-	<array>
-		<string>packet-tunnel-provider</string>
-	</array>
 </dict>
 </plist>

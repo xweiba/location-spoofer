@@ -11,7 +11,7 @@
 
 [![iOS 15+](https://img.shields.io/badge/iOS-15%2B-111111?logo=apple)](project.yml)
 [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138)](project.yml)
-[![Go 1.23+](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go)](Core/go.mod)
+[![Go 1.26+](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go)](Core/go.mod)
 [![Version](https://img.shields.io/badge/version-v1.0.5-2563EB)](docs/CHANGELOG.md)
 
 [功能概览](#功能概览) ·
@@ -38,7 +38,7 @@ Location Spoofer 是一个面向 iOS 定位服务行为研究和开发测试的�
 
 - 原生地图选点和位置场景切换；
 - Apple 定位服务响应的测试环境模拟；
-- 本地代理和第三方代理两种运行模式；
+- 本地代理、内置 VPN 和第三方代理三种运行模式；
 - 坐标标准识别与 WGS-84 / GCJ-02 双坐标管理；
 - 环境检测、运行日志和问题诊断；
 - 收藏位置和上次地图状态恢复。
@@ -58,12 +58,14 @@ Location Spoofer 是一个面向 iOS 定位服务行为研究和开发测试的�
     - 在测试环境中返回选定的坐标数据；
     - 不需要修改目标 App 代码。
 
-- **双运行模式**
+- **三种运行模式**
     - APP 模式：在设备内运行 Go 代理，仅支持当前 Wi-Fi 网络；
+    - 内置 VPN 模式：App 自带系统 VPN，只捕获 Apple 定位服务域名，Wi-Fi 与蜂窝均可用；
     - 第三方代理模式：通过支持的代理客户端覆盖 Wi-Fi、4G 或 5G，具体能力取决于客户端。
 
 - **环境检测**
     - APP 模式检测本地代理、证书信任和请求链路；
+    - 内置 VPN 模式检测隧道连接、证书信任和拦截链路；
     - 第三方代理模式检测 WLOC 配置接口和模块响应；
     - 失败时提供对应的配置或诊断入口。
 
@@ -103,6 +105,36 @@ APP 模式：
 - 需要配置当前 Wi-Fi 的手动 HTTP 代理；
 - 需要安装并信任 App 生成的本机 CA；
 - 代理只处理项目定义的 Apple 定位服务和环境验证请求，不是通用网络抓包工具。
+
+### 内置 VPN 模式
+
+内置 VPN 模式在设备内运行一个 Network Extension（Packet Tunnel）。它不把全部流量接入隧道，而是只把
+`gs-loc.apple.com` 与 `gs-loc-cn.apple.com` 两个域名的地址加入隧道路由。
+
+```text
+iOS 定位请求
+      │
+      │ 仅 gs-loc 域名的隧道路由
+      ▼
+内置 VPN 扩展（Network Extension）
+      │
+      │ 设备内 wloccore Go 代理（MITM + 改写）
+      ▼
+Apple 定位服务响应
+      │
+      │ 测试坐标响应
+      ▼
+系统和应用读取定位结果
+```
+
+内置 VPN 模式：
+
+- 使用 App 自带的系统 VPN，首次启用需要允许系统添加 VPN 配置；
+- 只覆盖两个 Apple 定位服务域名，其余流量不经过隧道；
+- Wi-Fi 与蜂窝网络均可用；
+- 需要安装并信任 App 生成的本机 CA（与 APP 模式共用同一证书）；
+- 需要付费 Apple Developer 账号签名并注入 `packet-tunnel-provider` 权限（免费个人账号无法签发
+  Network Extension 权限）。
 
 ### 第三方代理模式
 
@@ -196,6 +228,22 @@ App 只验证配置接口的 HTTP 状态、JSON 格式和坐标回读，不管�
 - 安装并信任本机 CA；
 - 在 App 内完成代理配置和环境检测。
 
+### 内置 VPN 模式
+
+适用于：
+
+- 需要同时覆盖 Wi-Fi 与蜂窝网络，又不想购买或配置第三方代理客户端；
+- 希望免去手工配置 Wi-Fi 代理、一键启用虚拟定位的场景。
+
+使用条件：
+
+- 付费 Apple Developer 账号（免费个人账号无法签发 Network Extension 权限）；
+- 签名时为扩展注入 `packet-tunnel-provider` 权限（见下方自签说明）；
+- 安装并信任本机 CA；
+- 首次启用时允许系统添加 VPN 配置。
+
+启用后状态栏会显示 VPN 图标；该隧道只包含两个定位服务域名的路由，其他应用流量不经过隧道。
+
 ### 第三方代理模式
 
 适用于：
@@ -236,7 +284,9 @@ App 只验证配置接口的 HTTP 状态、JSON 格式和坐标回读，不管�
 - 在 macOS 上按[构建说明](docs/BUILD.md)自行构建。
 
 免费自签环境可能无法使用 Network Extension，因此 APP 模式采用设备内本地代理和 Wi-Fi 手动代理，不依赖
-VPN 组件。
+VPN 组件。内置 VPN 模式必须使用付费 Apple Developer 账号，并在签名时为扩展
+（`PaopaoVPNExtension.appex`）注入 `Scripts/impactor-entitlements-extension.plist` 中的权限；缺少
+`packet-tunnel-provider` 权限时，App 内启用隧道会超时并提示签名要求。
 
 #### 自签安装说明
 
@@ -249,7 +299,8 @@ Release 附件是未签名 IPA，需要使用自签工具安装到 iPhone：
 3. **准备自签软件**：前往 [Impactor Releases](https://github.com/claration/Impactor/releases) 下载对应系统
    版本的 Impactor；也可以使用爱思助手等支持 IPA 自签安装的软件。
 4. **连接并安装**：使用 USB 数据线连接 iPhone 与电脑，在手机上选择“信任此电脑”，然后在自签软件中选择
-   刚下载的 IPA，根据软件提示完成签名与安装。
+   刚下载的 IPA，根据软件提示完成签名与安装。使用内置 VPN 模式时，请为 App 与扩展分别应用
+   `Scripts/impactor-entitlements-app.plist` 和 `Scripts/impactor-entitlements-extension.plist`。
 
 Impactor 支持 Windows、macOS 和 Linux；Windows 若无法识别设备，请先安装 iTunes 提供的 Apple 设备驱动。
 爱思助手属于第三方软件，请从其官方渠道获取，并自行评估账号、证书和隐私风险。
@@ -261,7 +312,7 @@ Apple ID 自签通常只有 7 天有效期，到期后需要重新签名安装�
 
 首次启动时：
 
-1. 选择 APP 模式或第三方代理模式；
+1. 选择 APP 模式、内置 VPN 模式或第三方代理模式；
 2. 按照 App 内引导完成对应配置；
 3. 执行环境检测；
 4. 在地图中搜索、点击或拖动选择测试位置；
@@ -273,6 +324,12 @@ APP 模式：
 
 1. 停止测试位置；
 2. 关闭当前 Wi-Fi 的手动 HTTP 代理；
+3. 按 App 内提示刷新定位环境。
+
+内置 VPN 模式：
+
+1. 停止测试位置；
+2. 在 App 设置或系统设置中断开内置 VPN；
 3. 按 App 内提示刷新定位环境。
 
 第三方代理模式：
@@ -299,14 +356,15 @@ MapKit 不提供公开 API 直接返回当前是否使用 GCJ-02 或 WGS-84。�
 ## 项目结构
 
 ```text
-App/        SwiftUI 界面、MapKit、定位和运行流程
-Core/       Go 代理、证书服务和定位响应处理
-Shared/     坐标、收藏、日志、配置和共享模型
-Resources/  Info.plist、Entitlements 和资源文件
-Config/     构建配置
-Scripts/    构建、打包和验证脚本
-Tests/      XCTest 和 Shell contract tests
-docs/       构建、模块和版本文档
+App/           SwiftUI 界面、MapKit、定位和运行流程
+Core/          Go 代理、证书服务和定位响应处理
+Shared/        坐标、收藏、日志、配置和共享模型
+VPNExtension/  内置 VPN 的 Network Extension（Packet Tunnel）
+Resources/     Info.plist、Entitlements 和资源文件
+Config/        构建配置
+Scripts/       构建、打包和验证脚本
+Tests/         XCTest 和 Shell contract tests
+docs/          构建、模块和版本文档
 ```
 
 ## 构建项目

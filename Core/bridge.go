@@ -63,7 +63,7 @@ func wloccore_startproxyv2(certData, keyData *C.char, lat, lon C.double, enabled
 	if certData == nil || keyData == nil {
 		return 0
 	}
-	srv, err := startProxy(
+	srv, _, err := startProxy(
 		[]byte(C.GoString(certData)),
 		[]byte(C.GoString(keyData)),
 		float64(lat),

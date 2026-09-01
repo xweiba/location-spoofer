@@ -22,6 +22,7 @@ enum SetupStep: Int, CaseIterable {
     case cert
     case thirdPartyClient
     case thirdPartyImport
+    case vpn
 
     var title: String {
         switch self {
@@ -30,6 +31,7 @@ enum SetupStep: Int, CaseIterable {
         case .cert: return "初始化 CA 证书"
         case .thirdPartyClient: return "选择客户端"
         case .thirdPartyImport: return "导入并检测"
+        case .vpn: return "启用内置VPN"
         }
     }
 }
@@ -50,6 +52,7 @@ struct FirstSetupView: View {
     @State private var showDiagnostics = false
     @StateObject private var diagnosticActions = LocationActionCoordinator()
     @ObservedObject private var runtimeMode = ProxyRuntimeModeStore.shared
+    @ObservedObject private var vpnManager = BuiltInVPNManager.shared
     @ObservedObject private var thirdPartyProxy = ThirdPartyProxyManager.shared
     @ObservedObject private var thirdPartyClient = ThirdPartyProxyClientStore.shared
     @ObservedObject private var motionSimulation = MotionSimulationStore.shared
@@ -70,7 +73,7 @@ struct FirstSetupView: View {
             initialValue: setup.setupStep == .thirdPartyImport && !setup.message.isEmpty
         )
         _showsVerificationResult = State(
-            initialValue: [.proxy, .cert].contains(setup.setupStep)
+            initialValue: [.proxy, .cert, .vpn].contains(setup.setupStep)
                 && setup.lastVerificationResult != nil
         )
         _showsThirdPartyFailureLog = State(
@@ -96,6 +99,7 @@ struct FirstSetupView: View {
                             case .cert: certificateStep
                             case .thirdPartyClient: thirdPartyClientStep
                             case .thirdPartyImport: thirdPartyImportStep
+                            case .vpn: vpnStep
                             }
                             if let displayedVerificationResult { resultView(displayedVerificationResult) }
                         }
@@ -203,8 +207,12 @@ struct FirstSetupView: View {
         switch step {
         case .mode:
             return [.mode]
-        case .proxy, .cert:
+        case .proxy:
             return [.mode, .proxy, .cert]
+        case .cert:
+            return runtimeMode.mode == .builtInVPN ? [.mode, .cert, .vpn] : [.mode, .proxy, .cert]
+        case .vpn:
+            return [.mode, .cert, .vpn]
         case .thirdPartyClient, .thirdPartyImport:
             return [.mode, .thirdPartyClient, .thirdPartyImport]
         }
@@ -236,7 +244,7 @@ struct FirstSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("选择运行模式")
                 .font(.title2.bold())
-            Text("后续可在“设置 → 运行模式”中切换。两种模式不要同时拦截 WLOC 请求。")
+            Text("后续可在“设置 → 运行模式”中切换。多个模式不要同时拦截 WLOC 请求。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -248,6 +256,17 @@ struct FirstSetupView: View {
                 tint: .blue
             ) {
                 selectMode(.localWiFi)
+            }
+            .disabled(isPreparingMode)
+
+            modeCard(
+                title: "内置VPN模式",
+                icon: "lock.shield",
+                badges: ["Wi-Fi + 4G/5G", "一键启用"],
+                description: "App 启用自带的系统 VPN，只捕获 Apple 定位服务（gs-loc.apple.com / gs-loc-cn.apple.com）的请求并改写定位响应，其余流量直接放行。无需配置 Wi-Fi 代理，也无需购买第三方 VPN。需要付费 Apple Developer 账号签名（免费签名的设备请选择 APP模式 或第三方代理模式）。",
+                tint: .purple
+            ) {
+                selectMode(.builtInVPN)
             }
             .disabled(isPreparingMode)
 
@@ -391,6 +410,54 @@ struct FirstSetupView: View {
                 title: "信任证书",
                 caption: "1 在「证书信任设置」中为 Location Spoofer CA 开启完全信任。"
             )
+        }
+    }
+
+    private var vpnStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if !setup.message.isEmpty {
+                Label(setup.message, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            GroupBox(label: Label("启用内置 VPN", systemImage: "lock.shield")) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("点击下方「启用并验证」。首次启动时系统会弹窗询问是否允许添加 VPN 配置，请选择「允许」。该 VPN 只把 Apple 定位服务的两个域名接入隧道，其余流量不会经过。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 8) {
+                        Image(systemName: vpnStatusIcon)
+                            .foregroundStyle(vpnManager.isConnected ? .green : .secondary)
+                        Text(vpnStatusText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.top, 4)
+            }
+            Text("内置 VPN 依赖 NetworkExtension 能力，只有付费 Apple Developer 账号签名（并为扩展注入 packet-tunnel-provider 权限）时可用。启动超时通常意味着签名缺少该权限。")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var vpnStatusIcon: String {
+        switch vpnManager.status {
+        case .connected: return "checkmark.circle.fill"
+        case .connecting, .reasserting: return "arrow.triangle.2.circlepath"
+        case .disconnecting: return "arrow.down.circle"
+        default: return "circle.dotted"
+        }
+    }
+
+    private var vpnStatusText: String {
+        switch vpnManager.status {
+        case .connected: return "内置 VPN 已连接"
+        case .connecting, .reasserting: return "内置 VPN 连接中…"
+        case .disconnecting: return "内置 VPN 断开中…"
+        default: return "内置 VPN 未连接"
         }
     }
 
@@ -683,10 +750,12 @@ struct FirstSetupView: View {
         case .proxy, .thirdPartyClient:
             step = .mode
         case .cert:
-            step = .proxy
+            step = runtimeMode.mode == .builtInVPN ? .mode : .proxy
         case .thirdPartyImport:
             thirdPartyTestFailure = nil
             step = .thirdPartyClient
+        case .vpn:
+            step = .cert
         }
     }
 
@@ -786,6 +855,14 @@ struct FirstSetupView: View {
                 actionLabel("完成")
             }
                 .buttonStyle(.borderedProminent)
+        } else if step == .vpn {
+            Button {
+                enableAndVerifyVPN()
+            } label: {
+                actionLabel("启用并验证")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isVerifying)
         } else {
             Button {
                 verifyThirdPartyConnection()
@@ -813,6 +890,15 @@ struct FirstSetupView: View {
             setup.proxy.stop()
             BackgroundKeepAlive.shared.stop()
             step = .thirdPartyClient
+        case .builtInVPN:
+            setup.proxy.stop()
+            BackgroundKeepAlive.shared.stop()
+            isPreparingMode = true
+            Task { @MainActor in
+                await setup.prepareVPNServices()
+                isPreparingMode = false
+                step = .cert
+            }
         }
     }
 
@@ -918,11 +1004,33 @@ struct FirstSetupView: View {
     }
 
     private func verifyAfterCertificateConfirmation() {
+        if runtimeMode.mode == .builtInVPN {
+            result = nil
+            step = .vpn
+            return
+        }
         runVerification { result in
             if result.isSuccess {
                 onComplete()
             } else if result != .certNotTrusted {
                 step = .proxy
+            }
+        }
+    }
+
+    private func enableAndVerifyVPN() {
+        guard !isVerifying else { return }
+        isVerifying = true
+        result = nil
+        showsVerificationResult = false
+        Task {
+            let verification = await setup.runVPNVerificationTest()
+            setup.applyVerificationResult(verification)
+            result = verification
+            showsVerificationResult = true
+            isVerifying = false
+            if verification.isSuccess {
+                onComplete()
             }
         }
     }
@@ -947,6 +1055,7 @@ struct FirstSetupView: View {
         switch result {
         case .certNotTrusted: return "证书尚未安装或信任"
         case .wifiProxyNotConfigured: return "Wi-Fi 代理未正确设置"
+        case .builtInVPNNotActive: return "内置 VPN 未能拦截验证请求"
         case .proxyNotRunning: return "本地代理未能启动"
         case .verificationInProgress: return "检测仍在进行"
         case .verificationSuperseded: return "检测结果已过期"

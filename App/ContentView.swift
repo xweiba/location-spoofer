@@ -59,10 +59,16 @@ struct ContentView: View {
 
         let launchMode = runtimeMode.mode
         guard runtimeMode.isInitialized(launchMode) else {
-            if launchMode == .localWiFi {
+            switch launchMode {
+            case .localWiFi:
                 await setup.prepareLocalServices()
                 setup.requestSetup()
-            } else {
+            case .builtInVPN:
+                ProxyManager.shared.stop()
+                BackgroundKeepAlive.shared.stop()
+                await setup.prepareVPNServices()
+                setup.requestVPNSetup()
+            case .thirdParty:
                 ProxyManager.shared.stop()
                 BackgroundKeepAlive.shared.stop()
                 setup.requestThirdPartyOnboarding()
@@ -71,9 +77,16 @@ struct ContentView: View {
             return
         }
 
-        if launchMode == .localWiFi {
+        switch launchMode {
+        case .localWiFi:
             await setup.prepareLocalServices()
-        } else {
+        case .builtInVPN:
+            await setup.prepareVPNServices()
+            RuntimeLogger.info("APP", "Startup", "内置 VPN 模式：后台自动连接隧道")
+            Task { @MainActor in
+                try? await BuiltInVPNManager.shared.connect()
+            }
+        case .thirdParty:
             ProxyManager.shared.stop()
             BackgroundKeepAlive.shared.stop()
             RuntimeLogger.info("APP", "Startup", "第三方代理测试模式：跳过本地 CA、代理和环境检测")

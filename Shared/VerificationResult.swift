@@ -8,6 +8,7 @@ enum VerificationResult: Equatable, Identifiable {
     case verificationSuperseded
     case certNotTrusted
     case wifiProxyNotConfigured
+    case builtInVPNNotActive
     case coordinateWriteFailed(String)
     case patchFailed(String)
 
@@ -19,6 +20,7 @@ enum VerificationResult: Equatable, Identifiable {
         case .verificationSuperseded: return "验证已被新位置取代"
         case .certNotTrusted: return "证书未信任"
         case .wifiProxyNotConfigured: return "WiFi代理未配置"
+        case .builtInVPNNotActive: return "内置VPN未生效"
         case .coordinateWriteFailed: return "坐标写入失败"
         case .patchFailed: return "改写验证失败"
         }

@@ -52,6 +52,7 @@ struct MapHomeView: View {
     @StateObject private var actions = LocationActionCoordinator()
     @ObservedObject private var proxy = ProxyManager.shared
     @ObservedObject private var runtimeMode = ProxyRuntimeModeStore.shared
+    @ObservedObject private var vpnManager = BuiltInVPNManager.shared
     @ObservedObject private var thirdPartyProxy = ThirdPartyProxyManager.shared
     @ObservedObject private var thirdPartyClient = ThirdPartyProxyClientStore.shared
     @ObservedObject private var remoteConfiguration = AppRemoteConfigurationStore.shared
@@ -152,7 +153,7 @@ struct MapHomeView: View {
             initialName: initialName
         ))
 
-        if ProxyRuntimeModeStore.shared.mode == .localWiFi,
+        if ProxyRuntimeModeStore.shared.mode != .thirdParty,
            let settings = WlocSettingsStore.load(), settings.enabled {
             _spoofState = State(initialValue: .active)
             _activeSpoofLat = State(initialValue: settings.latitude)
@@ -319,6 +320,8 @@ struct MapHomeView: View {
             startMapRuntimeOnce()
             if runtimeMode.mode == .localWiFi {
                 registerWiFiChangeObserver()
+            } else if runtimeMode.mode == .builtInVPN {
+                spoofState = actions.virtualLocationEnabled ? .active : .idle
             } else {
                 refreshThirdPartyState()
             }
@@ -351,6 +354,12 @@ struct MapHomeView: View {
                 actions.clear()
             }
         }
+        .onChange(of: vpnManager.status) { newStatus in
+            if runtimeMode.mode == .builtInVPN, newStatus != .connected && spoofState == .active {
+                spoofState = .idle
+                actions.clear()
+            }
+        }
         .onChange(of: showEnableTip) { isPresented in
             guard !isPresented, let client = pendingCommunityContributionClient else { return }
             pendingCommunityContributionClient = nil
@@ -373,6 +382,8 @@ struct MapHomeView: View {
             if mode == .localWiFi {
                 spoofState = actions.virtualLocationEnabled ? .active : .idle
                 registerWiFiChangeObserver()
+            } else if mode == .builtInVPN {
+                spoofState = actions.virtualLocationEnabled ? .active : .idle
             } else {
                 spoofState = .idle
                 refreshThirdPartyState()
@@ -673,7 +684,9 @@ struct MapHomeView: View {
                 return
             }
 
-            let result = await setup.runVerificationTest()
+            let result = runtimeMode.mode == .builtInVPN
+                ? await setup.runVPNVerificationTest()
+                : await setup.runVerificationTest()
             guard !Task.isCancelled,
                   operationID == locationOperationID,
                   selectionRevision == mapState.selection.revision else {
@@ -760,6 +773,9 @@ struct MapHomeView: View {
         activeSpoofLon = nil
         lastSpoofDiagnosisSystem = nil
         hasLoggedSpoofDiagnosis = false
+        if runtimeMode.mode == .builtInVPN {
+            BuiltInVPNManager.shared.disconnect()
+        }
         presentSuccessfulOperationTip(.deactivation)
     }
 

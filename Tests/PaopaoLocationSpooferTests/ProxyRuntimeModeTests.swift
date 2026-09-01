@@ -18,17 +18,22 @@ final class ProxyRuntimeModeTests: XCTestCase {
         XCTAssertFalse(initial.hasSelectedMode)
         XCTAssertFalse(initial.isInitialized(.localWiFi))
         XCTAssertFalse(initial.isInitialized(.thirdParty))
+        XCTAssertFalse(initial.isInitialized(.builtInVPN))
 
         initial.setMode(.thirdParty)
         initial.markInitialized(.thirdParty)
+        initial.markInitialized(.builtInVPN)
         let restored = ProxyRuntimeModeStore(defaults: defaults, legacyDefaults: legacyDefaults)
         XCTAssertEqual(restored.mode, .thirdParty)
         XCTAssertTrue(restored.hasSelectedMode)
         XCTAssertFalse(restored.isInitialized(.localWiFi))
         XCTAssertTrue(restored.isInitialized(.thirdParty))
+        XCTAssertTrue(restored.isInitialized(.builtInVPN))
 
         restored.resetInitialization(.thirdParty)
         XCTAssertFalse(restored.isInitialized(.thirdParty))
+        restored.resetInitialization(.builtInVPN)
+        XCTAssertFalse(restored.isInitialized(.builtInVPN))
     }
 
     func testMigratesOnlyCurrentLegacyCompletedMode() {

@@ -103,7 +103,12 @@ final class ThirdPartyProxyManagerTests: XCTestCase {
         XCTAssertFalse(manager.moduleUpdateRecommended)
         XCTAssertEqual(manager.connectionState, .connected(active: true))
         XCTAssertEqual(requester.requestedURLs.map(\.path), ["/wloc-settings/save"])
-        XCTAssertNil(requester.requestedURLs.first?.query)
+        let components = URLComponents(
+            url: try XCTUnwrap(requester.requestedURLs.first),
+            resolvingAgainstBaseURL: false
+        )
+        let names = Set((components?.queryItems ?? []).map(\.name))
+        XCTAssertTrue(names.isSuperset(of: ["lon", "lat", "acc"]))
     }
 
     func testBrokenSaveQueryFailsWithoutCheckingVersion() async {

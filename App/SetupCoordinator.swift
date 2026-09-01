@@ -14,6 +14,7 @@ final class SetupCoordinator: ObservableObject {
 
     let certificateStore = CertificateAuthorityStore()
     let proxy = ProxyManager.shared
+    let vpn = BuiltInVPNManager.shared
     private var isVerificationRunning = false
 
     init() { RuntimeLogger.info("APP", "Setup", "初始化") }
@@ -42,6 +43,20 @@ final class SetupCoordinator: ObservableObject {
         }
     }
 
+    /// VPN mode only needs the device CA; the tunnel itself carries interception.
+    @discardableResult
+    func prepareVPNServices() async -> Bool {
+        do {
+            _ = try certificateStore.ensure()
+            message = ""
+            return true
+        } catch {
+            message = "本地证书初始化失败：\(error.localizedDescription)"
+            RuntimeLogger.error("APP", "Startup", "VPN 模式证书初始化失败", error: error)
+            return false
+        }
+    }
+
     func applyVerificationResult(_ result: VerificationResult) {
         lastVerificationResult = result
         switch result {
@@ -56,6 +71,11 @@ final class SetupCoordinator: ObservableObject {
             message = "CA 证书未安装或未信任"
         case .verificationInProgress, .verificationSuperseded:
             break
+        case .builtInVPNNotActive:
+            trustState = .unavailable
+            setupStep = .vpn
+            needsSetup = true
+            message = "内置 VPN 未生效，请重试启用"
         default:
             trustState = .unavailable
             setupStep = .proxy
@@ -97,10 +117,98 @@ final class SetupCoordinator: ObservableObject {
         setupStep = .proxy
         needsSetup = true
     }
+    func requestVPNSetup(message: String = "") {
+        lastVerificationResult = nil
+        self.message = message
+        setupStep = .vpn
+        needsSetup = true
+    }
+
+    // MARK: - Built-in VPN verification
+
+    func runVPNVerificationTest() async -> VerificationResult {
+        guard !isVerificationRunning else { return .verificationInProgress }
+        isVerificationRunning = true
+        defer { isVerificationRunning = false }
+
+        testLog = ""
+        let log = { (msg: String) in self.testLog += msg + "\n" }
+
+        log("======== 内置 VPN 验证测试 ========")
+        log("App 版本: \(appVersion)")
+        log("系统版本: iOS \(UIDevice.current.systemVersion)")
+        log("")
+
+        log("[步骤 A] 启动内置 VPN…")
+        do {
+            try await vpn.connect()
+            log("  ✓ VPN 已连接")
+        } catch {
+            log("  ✗ VPN 连接失败: \(error.localizedDescription)")
+            return .builtInVPNNotActive
+        }
+
+        log("")
+        log("[步骤 B] 添加临时验证路由并检测证书与隧道…")
+        log("  方式: 隧道内拦截 baidu.com/paopao-verify-<token>")
+        do {
+            try await vpn.setExtraHosts(["www.baidu.com"])
+        } catch {
+            log("  ⚠ 添加验证路由失败: \(error.localizedDescription)")
+        }
+        defer {
+            Task { try? await vpn.setExtraHosts([]) }
+        }
+
+        let verifyToken: String
+        do {
+            verifyToken = try await vpn.requestVerifyToken()
+        } catch {
+            log("  ✗ 无法获取验证 token: \(error.localizedDescription)")
+            return .builtInVPNNotActive
+        }
+        guard !verifyToken.isEmpty else {
+            log("  ✗ 无法生成验证 token")
+            return .builtInVPNNotActive
+        }
+
+        do {
+            let url = URL(string: "https://www.baidu.com/paopao-verify-\(verifyToken)")!
+            var req = URLRequest(url: url)
+            req.timeoutInterval = 10
+            req.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            let config = URLSessionConfiguration.ephemeral
+            let (data, resp) = try await URLSession(configuration: config).data(for: req)
+            let statusCode = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            let body = String(data: data, encoding: .utf8) ?? ""
+            if body == verifyToken {
+                log("  ✓ 证书已信任，隧道拦截生效")
+            } else {
+                log("  ✗ 响应不匹配: HTTP \(statusCode)，隧道未拦截验证请求")
+                return .builtInVPNNotActive
+            }
+        } catch {
+            let ns = error as NSError
+            let msg = error.localizedDescription
+            log("  ✗ 请求失败 [\(ns.domain) code=\(ns.code)]: \(msg)")
+            if isCertificateTrustError(nsError: ns, message: msg) {
+                log("  TLS/证书校验失败，CA 证书未信任")
+                return .certNotTrusted
+            }
+            return .builtInVPNNotActive
+        }
+
+        log("")
+        log("======== 内置 VPN 环境检测通过 ✓ ========")
+        return .success
+    }
 
     // MARK: - Step-by-step verification test
 
     func runVerificationTest() async -> VerificationResult {
+        if ProxyRuntimeModeStore.shared.mode == .builtInVPN {
+            return await runVPNVerificationTest()
+        }
         guard !isVerificationRunning else { return .verificationInProgress }
         isVerificationRunning = true
         defer { isVerificationRunning = false }

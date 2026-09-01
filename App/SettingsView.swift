@@ -22,6 +22,7 @@ struct SettingsView: View {
     @ObservedObject var actions: LocationActionCoordinator
     @ObservedObject private var proxy = ProxyManager.shared
     @ObservedObject private var runtimeMode = ProxyRuntimeModeStore.shared
+    @ObservedObject private var vpnManager = BuiltInVPNManager.shared
     @ObservedObject private var thirdPartyProxy = ThirdPartyProxyManager.shared
     @ObservedObject private var thirdPartyClient = ThirdPartyProxyClientStore.shared
     @ObservedObject private var motionSimulation = MotionSimulationStore.shared
@@ -59,6 +60,19 @@ struct SettingsView: View {
                         Toggle("", isOn: proxyBinding).labelsHidden()
                             .tint(.blue)
                             .disabled(actions.state.isBusy)
+                    }
+                } else if runtimeMode.mode == .builtInVPN {
+                    HStack {
+                        Label("内置 VPN", systemImage: vpnManager.isConnected ? "lock.shield.fill" : "lock.shield")
+                        Spacer()
+                        Toggle("", isOn: vpnBinding).labelsHidden()
+                            .tint(.blue)
+                            .disabled(vpnManager.isBusy || actions.state.isBusy)
+                    }
+                    HStack {
+                        Label("隧道状态", systemImage: vpnStatusIcon)
+                        Spacer()
+                        Text(vpnStatusText).foregroundStyle(.secondary)
                     }
                 } else {
                     HStack {
@@ -133,6 +147,13 @@ struct SettingsView: View {
                         Label("进入引导页", systemImage: "arrow.clockwise.circle")
                     }
                 }
+                if runtimeMode.mode == .builtInVPN {
+                    Button {
+                        setup.requestVPNSetup()
+                    } label: {
+                        Label("进入引导页", systemImage: "arrow.clockwise.circle")
+                    }
+                }
                 Button {
                     checkForUpdates()
                 } label: {
@@ -149,7 +170,7 @@ struct SettingsView: View {
                 valueRow("版本", value: versionText)
             }
 
-            if runtimeMode.mode == .localWiFi {
+            if runtimeMode.mode == .localWiFi || runtimeMode.mode == .builtInVPN {
                 Section("证书") {
                     Button(role: .destructive) {
                         showCertificateResetConfirmation = true
@@ -366,6 +387,46 @@ struct SettingsView: View {
         })
     }
 
+    private var vpnBinding: Binding<Bool> {
+        Binding(get: { vpnManager.isConnected }, set: { on in
+            Task { @MainActor in
+                do {
+                    if on {
+                        try await vpnManager.connect()
+                    } else {
+                        if actions.virtualLocationEnabled {
+                            actions.clear()
+                            RuntimeLogger.info("APP", "Settings", "断开 VPN 前已同步关闭虚拟定位")
+                        }
+                        vpnManager.disconnect()
+                    }
+                } catch {
+                    proxyOperationAlertTitle = "内置 VPN 操作失败"
+                    proxyOperationError = error.localizedDescription
+                }
+            }
+        })
+    }
+
+    private var vpnStatusIcon: String {
+        switch vpnManager.status {
+        case .connected: return "checkmark.circle.fill"
+        case .connecting, .reasserting: return "arrow.triangle.2.circlepath"
+        case .disconnecting: return "arrow.down.circle"
+        default: return "circle.dotted"
+        }
+    }
+
+    private var vpnStatusText: String {
+        switch vpnManager.status {
+        case .connected: return "已连接"
+        case .connecting, .reasserting: return "连接中…"
+        case .disconnecting: return "断开中…"
+        case .invalid: return "扩展未加载"
+        default: return "未连接"
+        }
+    }
+
     private var runtimeModeBinding: Binding<ProxyRuntimeMode> {
         Binding(
             get: { runtimeMode.mode },
@@ -377,7 +438,7 @@ struct SettingsView: View {
         Binding(
             get: { motionSimulation.isEnabled },
             set: { enabled in
-                if runtimeMode.mode == .localWiFi {
+                if runtimeMode.mode != .thirdParty {
                     proxy.applyMotionSimulation(enabled)
                     return
                 }
@@ -515,7 +576,7 @@ struct SettingsView: View {
     }
 
     private var virtualLocationStatusText: String {
-        if runtimeMode.mode == .localWiFi {
+        if runtimeMode.mode == .localWiFi || runtimeMode.mode == .builtInVPN {
             return actions.virtualLocationEnabled ? "已开启" : "已关闭"
         }
         if case .connected(let active) = thirdPartyProxy.connectionState {
@@ -527,6 +588,13 @@ struct SettingsView: View {
     private var workflowDescription: String {
         if runtimeMode.mode == .thirdParty {
             return "App 只负责地图选点、收藏和发送 WGS-84 坐标。第三方代理客户端通过模块拦截 Apple WLOC 请求并持久化当前坐标；本模式不启动本机代理，不使用 App 的 CA，也不需要配置 127.0.0.1:8888。"
+        }
+        if runtimeMode.mode == .builtInVPN {
+            return """
+            App 启用自带的系统 VPN，只把 gs-loc.apple.com 和 gs-loc-cn.apple.com 两个域名接入隧道，其余流量不经过。
+
+            隧道内部使用已安装的 CA 证书对这两个域名的 HTTPS 流量做中间人解密，把 Apple 返回的定位坐标改写为你设置的虚拟坐标，再加密返回给系统。无需配置 Wi-Fi 代理，也不依赖第三方 VPN。
+            """
         }
         return """
         App 在设备本地运行一个代理服务器（127.0.0.1:8888）。
@@ -544,6 +612,7 @@ struct SettingsView: View {
             case .thirdParty:
                 if actions.virtualLocationEnabled { actions.clear() }
                 proxy.stop()
+                vpnManager.disconnect()
                 setup.completeSetup()
                 runtimeMode.setMode(.thirdParty)
                 if runtimeMode.isInitialized(.thirdParty) {
@@ -560,6 +629,7 @@ struct SettingsView: View {
                     dismiss()
                 }
             case .localWiFi:
+                vpnManager.disconnect()
                 do {
                     try await thirdPartyProxy.clear()
                 } catch {
@@ -580,6 +650,32 @@ struct SettingsView: View {
                     }
                 } else {
                     setup.requestSetup()
+                    dismiss()
+                }
+            case .builtInVPN:
+                if actions.virtualLocationEnabled { actions.clear() }
+                proxy.stop()
+                vpnManager.disconnect()
+                do {
+                    try await thirdPartyProxy.clear()
+                } catch {
+                    RuntimeLogger.warning("APP", "Mode", "切换内置 VPN 模式前无法清除第三方坐标", details: [
+                        "错误": error.localizedDescription
+                    ])
+                }
+                runtimeMode.setMode(.builtInVPN)
+                await setup.prepareVPNServices()
+                if runtimeMode.isInitialized(.builtInVPN) {
+                    let result = await setup.runVPNVerificationTest()
+                    setup.applyVerificationResult(result)
+                    if result.isSuccess {
+                        proxyOperationAlertTitle = "模式已切换"
+                        proxyOperationError = "内置 VPN 模式环境检测通过。请停用第三方 WLOC 模块或手动代理，避免双重拦截。"
+                    } else {
+                        dismiss()
+                    }
+                } else {
+                    setup.requestVPNSetup()
                     dismiss()
                 }
             }
@@ -643,7 +739,9 @@ struct SettingsView: View {
     }
 
     private func resetCertificateAuthority() {
-        guard runtimeMode.mode == .localWiFi, !modeOperationRunning else { return }
+        guard runtimeMode.mode == .localWiFi || runtimeMode.mode == .builtInVPN,
+              !modeOperationRunning else { return }
+        let mode = runtimeMode.mode
         modeOperationRunning = true
         Task { @MainActor in
             defer { modeOperationRunning = false }
@@ -651,9 +749,20 @@ struct SettingsView: View {
                 actions.clear()
             }
             proxy.stop()
+            vpnManager.disconnect()
             do {
                 try setup.certificateStore.reset()
-                runtimeMode.resetInitialization(.localWiFi)
+                runtimeMode.resetInitialization(mode)
+                if mode == .builtInVPN {
+                    guard await setup.prepareVPNServices() else {
+                        proxyOperationAlertTitle = "证书重置失败"
+                        proxyOperationError = setup.message
+                        return
+                    }
+                    setup.requestCertificateSetup()
+                    dismiss()
+                    return
+                }
                 guard await setup.prepareLocalServices() else {
                     proxyOperationAlertTitle = "证书重置失败"
                     proxyOperationError = setup.message
@@ -680,7 +789,7 @@ struct SettingsView: View {
     }
 
     private var virtualLocationIsActive: Bool {
-        if runtimeMode.mode == .localWiFi {
+        if runtimeMode.mode == .localWiFi || runtimeMode.mode == .builtInVPN {
             return actions.virtualLocationEnabled
         }
         if case .connected(let active) = thirdPartyProxy.connectionState {

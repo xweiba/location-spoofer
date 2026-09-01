@@ -3,7 +3,7 @@
 ## Requirements
 
 - macOS with Xcode and Command Line Tools
-- Go 1.23 or newer
+- Go 1.26 or newer（`Core/go.mod` 声明 1.26.3；旧版本工具链会在允许时自动下载）
 - XcodeGen (`brew install xcodegen`)
 
 ## One-command build
@@ -34,6 +34,22 @@ dist/PaopaoLocationSpoofer-unsigned.ipa
 
 IPA 始终保持未签名。用 [Impactor](https://github.com/claration/Impactor) 签名安装即可。
 
+## 内置 VPN 扩展
+
+IPA 内的 `PlugIns/PaopaoVPNExtension.appex` 是内置 VPN 模式的 Network Extension（Packet Tunnel）。
+它和主 App 链接同一份 `libwloccore.a`，在隧道内复用 Go 核心的 MITM 与 wloc 改写逻辑。
+
+签名要求：
+
+- 扩展需要 `com.apple.developer.networking.networkextension`（`packet-tunnel-provider`）权限；
+  该权限只能由付费 Apple Developer 账号签发，免费个人账号签名的构建无法加载扩展。
+- 自签安装时，为 App 应用 `Scripts/impactor-entitlements-app.plist`，为扩展应用
+  `Scripts/impactor-entitlements-extension.plist`。
+- 扩展与 App 共用 App Group `group.com.paopaolabs.location-spoofer` 与同一 keychain access group
+  （CA 证书存储），签名时不要改动这两个值。
+
+模拟器无法加载 Network Extension，内置 VPN 只能真机验证。
+
 ## 发布验收
 
 1. `./build.sh` 通过并输出未签名 IPA
@@ -42,6 +58,8 @@ IPA 始终保持未签名。用 [Impactor](https://github.com/claration/Impactor
 4. 环境检测通过后，选点开启虚拟定位
 5. 打开 Apple 地图验证定位是否变为虚拟位置
 6. 若失败，查看诊断页的日志信息
+7. （内置 VPN）用付费账号签名并注入扩展权限后，选择内置 VPN 模式：信任 CA → 启用隧道 →
+   状态栏出现 VPN 图标 → 选点开启虚拟定位 → 地图/天气定位变为虚拟位置；断开后恢复真实定位
 
 ## 发布版本
 

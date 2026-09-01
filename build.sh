@@ -61,7 +61,7 @@ fi
 require_command xcrun "Install Xcode and its Command Line Tools."
 require_command xcodebuild "Install Xcode and select it with xcode-select."
 require_command xcodegen "Install XcodeGen: brew install xcodegen"
-require_command go "Install Go 1.23 or newer."
+require_command go "Install Go 1.26 or newer."
 
 "$ROOT/Scripts/build-unsigned-ipa.sh"
 

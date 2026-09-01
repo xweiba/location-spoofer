@@ -336,10 +336,14 @@ func randomUint32() uint32 {
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
-func startProxy(certPEM, keyPEM []byte, lat, lon float64, enabled bool, accuracy int, motionEnabled bool) (*http.Server, error) {
+func startProxy(certPEM, keyPEM []byte, lat, lon float64, enabled bool, accuracy int, motionEnabled bool) (*http.Server, int, error) {
+	return startProxyOnPort(certPEM, keyPEM, lat, lon, enabled, accuracy, motionEnabled, proxyPort)
+}
+
+func startProxyOnPort(certPEM, keyPEM []byte, lat, lon float64, enabled bool, accuracy int, motionEnabled bool, port int) (*http.Server, int, error) {
 	cert, err := parseCA(certPEM, keyPEM)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	stateMu.Lock()
@@ -348,18 +352,19 @@ func startProxy(certPEM, keyPEM []byte, lat, lon float64, enabled bool, accuracy
 	currentMotionSimulationEnabled = motionEnabled
 	stateMu.Unlock()
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", proxyPort))
+	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
+	actualPort := listener.Addr().(*net.TCPAddr).Port
 	srv := &http.Server{Handler: newProxy(cert)}
 	go func() {
 		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
 			logEvent("proxy server error: " + err.Error())
 		}
 	}()
-	logEvent("proxy started on 127.0.0.1:8888")
-	return srv, nil
+	logEvent(fmt.Sprintf("proxy started on 127.0.0.1:%d", actualPort))
+	return srv, actualPort, nil
 }
 
 func stopProxy(srv *http.Server) error {
