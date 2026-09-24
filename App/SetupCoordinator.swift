@@ -36,7 +36,7 @@ final class SetupCoordinator: ObservableObject {
             message = ""
             return true
         } catch {
-            message = String(localized: "本地代理初始化失败：\(error.localizedDescription)")
+            message = AppLocalization.string("本地代理初始化失败：\(error.localizedDescription)")
             RuntimeLogger.error("APP", "Startup", "本地服务初始化失败", error: error)
             return false
         }
@@ -48,19 +48,19 @@ final class SetupCoordinator: ObservableObject {
         case .success:
             trustState = .trusted
             needsSetup = false
-            message = String(localized: "✓ 定位环境正常")
+            message = AppLocalization.string("✓ 定位环境正常")
         case .certNotTrusted:
             trustState = .unavailable
             setupStep = .cert
             needsSetup = true
-            message = String(localized: "CA 证书未安装或未信任")
+            message = AppLocalization.string("CA 证书未安装或未信任")
         case .verificationInProgress, .verificationSuperseded:
             break
         default:
             trustState = .unavailable
             setupStep = .proxy
             needsSetup = true
-            message = String(localized: "Wi-Fi 代理未正确设置，请检查 127.0.0.1:8888")
+            message = AppLocalization.string("Wi-Fi 代理未正确设置，请检查 127.0.0.1:8888")
         }
     }
 
@@ -108,36 +108,36 @@ final class SetupCoordinator: ObservableObject {
         testLog = ""
         let log = { (msg: String) in self.testLog += msg + "\n" }
 
-        log(String(localized: "======== 代理验证测试 ========"))
-        log(String(localized: "App 版本: \(appVersion)"))
-        log(String(localized: "系统版本: iOS \(UIDevice.current.systemVersion)"))
+        log(AppLocalization.string("======== 代理验证测试 ========"))
+        log(AppLocalization.string("App 版本: \(appVersion)"))
+        log(AppLocalization.string("系统版本: iOS \(UIDevice.current.systemVersion)"))
         log("")
 
         // Step A: Proxy running
-        log(String(localized: "[步骤 A] 检查代理是否运行…"))
-        log(String(localized: "  端口: 127.0.0.1:8888"))
+        log(AppLocalization.string("[步骤 A] 检查代理是否运行…"))
+        log(AppLocalization.string("  端口: 127.0.0.1:8888"))
         let stepAStart = Date()
         if !proxy.isRunning {
-            log(String(localized: "  ⚠ 代理未运行，尝试启动…"))
+            log(AppLocalization.string("  ⚠ 代理未运行，尝试启动…"))
             do { try await proxy.start() } catch {
-                log(String(localized: "  ✗ 启动失败: \(error.localizedDescription)"))
+                log(AppLocalization.string("  ✗ 启动失败: \(error.localizedDescription)"))
                 return .proxyNotRunning
             }
-            log(String(localized: "  ✓ 代理启动成功"))
+            log(AppLocalization.string("  ✓ 代理启动成功"))
         } else {
-            log(String(localized: "  ✓ 代理已在运行中"))
+            log(AppLocalization.string("  ✓ 代理已在运行中"))
         }
         collectProxyLogs(since: stepAStart, to: log)
 
         // Step B: Combined CA + WiFi proxy check (single request)
         log("")
-        log(String(localized: "[步骤 B] 检测证书与 WiFi 代理…"))
-        log(String(localized: "  方式: 请求 baidu.com/paopao-verify-<token>"))
-        log(String(localized: "  结果判定: TLS 错误=证书问题 / 响应不匹配=代理未配置 / 匹配=通过"))
+        log(AppLocalization.string("[步骤 B] 检测证书与 WiFi 代理…"))
+        log(AppLocalization.string("  方式: 请求 baidu.com/paopao-verify-<token>"))
+        log(AppLocalization.string("  结果判定: TLS 错误=证书问题 / 响应不匹配=代理未配置 / 匹配=通过"))
         let stepBStart = Date()
         let verifyToken = CoreBridge.refreshVerifyToken()
         guard !verifyToken.isEmpty else {
-            log(String(localized: "  ✗ 无法生成验证 token"))
+            log(AppLocalization.string("  ✗ 无法生成验证 token"))
             return .certNotTrusted
         }
         do {
@@ -150,17 +150,17 @@ final class SetupCoordinator: ObservableObject {
             let statusCode = (resp as? HTTPURLResponse)?.statusCode ?? 0
             let body = String(data: data, encoding: .utf8) ?? ""
             if body == verifyToken {
-                log(String(localized: "  ✓ 证书已信任，WiFi 代理已配置"))
+                log(AppLocalization.string("  ✓ 证书已信任，WiFi 代理已配置"))
             } else {
-                log(String(localized: "  ✗ 响应不匹配: HTTP \(statusCode), \(data.count) bytes，WiFi 代理未配置"))
+                log(AppLocalization.string("  ✗ 响应不匹配: HTTP \(statusCode), \(data.count) bytes，WiFi 代理未配置"))
                 return .wifiProxyNotConfigured
             }
         } catch {
             let ns = error as NSError
             let msg = error.localizedDescription
-            log(String(localized: "  ✗ 请求失败 [\(ns.domain) code=\(ns.code)]: \(msg)"))
+            log(AppLocalization.string("  ✗ 请求失败 [\(ns.domain) code=\(ns.code)]: \(msg)"))
             if isCertificateTrustError(nsError: ns, message: msg) {
-                log(String(localized: "  TLS/证书校验失败，CA 证书未信任"))
+                log(AppLocalization.string("  TLS/证书校验失败，CA 证书未信任"))
                 return .certNotTrusted
             }
             return .wifiProxyNotConfigured
@@ -168,7 +168,7 @@ final class SetupCoordinator: ObservableObject {
         collectProxyLogs(since: stepBStart, to: log)
 
         log("")
-        log(String(localized: "======== 环境检测通过 ✓ ========"))
+        log(AppLocalization.string("======== 环境检测通过 ✓ ========"))
         return .success
     }
 
@@ -202,7 +202,7 @@ final class SetupCoordinator: ObservableObject {
             $0.source == "CORE" && $0.category == "Proxy" && $0.timestamp >= date
         }
         guard !proxyEntries.isEmpty else { return }
-        log(String(localized: "  --- 代理日志 ---"))
+        log(AppLocalization.string("  --- 代理日志 ---"))
         for e in proxyEntries {
             log("  " + e.localizedMessage)
         }

@@ -1,8 +1,8 @@
 /* ============================================================
-   English localization overlay.
+   English localization and development-language fallback.
    Keys are the original Simplified-Chinese source strings
-   (development language = zh-Hans). Any key not found here
-   falls back to the Chinese key text automatically.
+   All localized keys are mirrored in zh-Hans and zh-Hant tables.
+   Untranslated keys still display their Chinese source text.
    ============================================================ */
 
 /* MARK: - Shared models (ProxyRuntimeMode / VerificationResult) */
@@ -60,6 +60,8 @@
 "验证状态" = "Verification Status";
 "已复制模块订阅地址" = "Subscription URL copied";
 "复制模块订阅地址" = "Copy module subscription URL";
+"复制 %@" = "Copy %@";
+"已复制 %@" = "Copied %@";
 "已复制解密域名" = "Decryption hostnames copied";
 "复制解密域名" = "Copy decryption hostnames";
 "打开 %@" = "Open %@";

@@ -29,14 +29,14 @@ enum VerificationResult: Equatable, Identifiable {
     /// Localized, user-facing title. `id` stays stable for routing/equality.
     var localizedTitle: String {
         switch self {
-        case .success: return String(localized: "成功")
-        case .proxyNotRunning: return String(localized: "代理未运行")
-        case .verificationInProgress: return String(localized: "已有验证正在进行")
-        case .verificationSuperseded: return String(localized: "验证已被新位置取代")
-        case .certNotTrusted: return String(localized: "证书未信任")
-        case .wifiProxyNotConfigured: return String(localized: "WiFi代理未配置")
-        case .coordinateWriteFailed: return String(localized: "坐标写入失败")
-        case .patchFailed: return String(localized: "改写验证失败")
+        case .success: return AppLocalization.string("成功")
+        case .proxyNotRunning: return AppLocalization.string("代理未运行")
+        case .verificationInProgress: return AppLocalization.string("已有验证正在进行")
+        case .verificationSuperseded: return AppLocalization.string("验证已被新位置取代")
+        case .certNotTrusted: return AppLocalization.string("证书未信任")
+        case .wifiProxyNotConfigured: return AppLocalization.string("WiFi代理未配置")
+        case .coordinateWriteFailed: return AppLocalization.string("坐标写入失败")
+        case .patchFailed: return AppLocalization.string("改写验证失败")
         }
     }
 

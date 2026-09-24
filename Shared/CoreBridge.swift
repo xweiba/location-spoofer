@@ -12,8 +12,8 @@ enum CoreBridgeError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .generationFailed: return String(localized: "无法生成本地证书")
-        case .serverStartFailed: return String(localized: "无法启动本地证书服务")
+        case .generationFailed: return AppLocalization.string("无法生成本地证书")
+        case .serverStartFailed: return AppLocalization.string("无法启动本地证书服务")
         }
     }
 }

@@ -139,7 +139,7 @@ final class ThirdPartyProxyManagerTests: XCTestCase {
         XCTAssertNil(ThirdPartyProxyClient.shadowrocket.verificationText)
         XCTAssertEqual(
             ThirdPartyProxyClient.surge.verificationText,
-            String(localized: "配置已提供，尚未验证")
+            AppLocalization.string("配置已提供，尚未验证")
         )
         XCTAssertEqual(ThirdPartyProxyClient.egern.subscriptionURL, ThirdPartyProxyClient.surge.subscriptionURL)
         XCTAssertTrue(ThirdPartyProxyClient.stash.subscriptionURL.absoluteString.hasPrefix(

@@ -58,13 +58,13 @@ struct RuntimeLogEntry: Codable, Identifiable, Equatable {
     }
 
     private func localizedDiagnosticText(_ text: String) -> String {
-        String(localized: String.LocalizationValue(text))
+        AppLocalization.string(String.LocalizationValue(text))
     }
 
     private func localizedDiagnosticValue(_ value: String) -> String {
         switch value {
-        case "true": return String(localized: "是")
-        case "false": return String(localized: "否")
+        case "true": return AppLocalization.string("是")
+        case "false": return AppLocalization.string("否")
         default: return localizedDiagnosticText(value)
         }
     }

@@ -177,7 +177,7 @@ struct ContentView: View {
         switch prompt.requirement {
         case .required:
             let details = prompt.releaseNotes
-                ?? String(localized: "更新说明暂时无法加载，请前往最新 Release 页面查看。")
+                ?? AppLocalization.string("更新说明暂时无法加载，请前往最新 Release 页面查看。")
             return Alert(
                 title: Text("需要更新"),
                 message: Text(
@@ -189,7 +189,7 @@ struct ContentView: View {
             )
         case .recommended:
             let details = prompt.releaseNotes
-                ?? String(localized: "更新说明暂时无法加载，请前往最新 Release 页面查看。")
+                ?? AppLocalization.string("更新说明暂时无法加载，请前往最新 Release 页面查看。")
             return Alert(
                 title: Text("发现新版本"),
                 message: Text(

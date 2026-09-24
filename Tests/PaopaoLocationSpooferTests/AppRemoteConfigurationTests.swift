@@ -62,7 +62,7 @@ final class AppRemoteConfigurationTests: XCTestCase {
     func testFallbackMatchesCurrentProjectPolicy() {
         let configuration = AppRemoteConfiguration.fallback
 
-        XCTAssertEqual(configuration.latestVersion, "1.0.7")
+        XCTAssertEqual(configuration.latestVersion, "1.0.8")
         XCTAssertEqual(configuration.minimumSupportedVersion, "1.0.0")
         XCTAssertFalse(configuration.requestsCommunityPrompt(for: .shadowrocket))
         for client in ThirdPartyProxyClient.allCases where client != .shadowrocket {

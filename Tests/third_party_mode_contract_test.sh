@@ -10,8 +10,8 @@ CONTENT="$ROOT/App/ContentView.swift"
 SETUP="$ROOT/App/FirstSetupView.swift"
 SETTINGS="$ROOT/App/SettingsView.swift"
 
-grep -q 'String(localized: "APP模式")' "$MODE" || fail "localized APP mode display name is missing"
-grep -q 'String(localized: "第三方代理模式")' "$MODE" || fail "localized third-party mode display name is missing"
+grep -q 'AppLocalization.string("APP模式")' "$MODE" || fail "localized APP mode display name is missing"
+grep -q 'AppLocalization.string("第三方代理模式")' "$MODE" || fail "localized third-party mode display name is missing"
 grep -q 'hasSelectedMode' "$MODE" || fail "first-launch mode selection must be persisted"
 grep -q 'guard runtimeMode.hasSelectedMode else' "$CONTENT" || fail "mode selection must gate startup"
 grep -q 'phase = .setup' "$CONTENT" || fail "first launch must enter setup before map construction"
@@ -106,7 +106,7 @@ grep -q 'setup.requestThirdPartySetup(message: error.localizedDescription)' "$RO
   || fail "third-party coordinate sync failures must open the import guide"
 grep -q '检测到第三方代理连接异常，请检查模块、MITM 和代理连接后重新检测' "$SETUP" \
   || fail "runtime repair must explain why the import guide opened"
-test "$(grep -c 'title: String(localized: \"接口连接失败\")' "$SETUP")" -eq 1 \
+test "$(grep -c 'title: AppLocalization.string(\"接口连接失败\")' "$SETUP")" -eq 1 \
   || fail "third-party failure details must render in one shared result area"
 grep -Fq '当前客户端：\(client.name)' "$SETUP" \
   || fail "third-party failure logs must identify the selected client"
@@ -142,7 +142,7 @@ test -s "$ROOT/docs/onboarding-screenshots/shadowrocket/shadowrocket-module-impo
 grep -q 'presentSuccessfulOperationTip(.activation)' "$ROOT/App/MapHomeView.swift" || fail "third-party save must present the activation tip"
 grep -q 'presentSuccessfulOperationTip(.deactivation)' "$ROOT/App/MapHomeView.swift" || fail "third-party clear must present the deactivation tip"
 grep -q 'if spoofState == .active' "$ROOT/App/MapHomeView.swift" || fail "manual help must follow the shared spoof state"
-grep -q 'MARKETING_VERSION: "1.0.7"' "$ROOT/project.yml" || fail "marketing version must be 1.0.7"
-grep -q 'CURRENT_PROJECT_VERSION: "8"' "$ROOT/project.yml" || fail "build version must be 8"
+grep -q 'MARKETING_VERSION: "1.0.8"' "$ROOT/project.yml" || fail "marketing version must be 1.0.8"
+grep -q 'CURRENT_PROJECT_VERSION: "9"' "$ROOT/project.yml" || fail "build version must be 9"
 
 echo "PASS: third-party proxy mode contract"

@@ -109,9 +109,9 @@ struct RuntimeLogsView: View {
                         let result = await setup.runVerificationTest()
                         testSucceeded = result.isSuccess
                         testResult = result.isSuccess
-                            ? String(localized: "环境检测通过")
-                            : String(localized: "环境检测失败: \(result.localizedTitle)")
-                        if !result.isSuccess { testResult += String(localized: "，查看下方日志") }
+                            ? AppLocalization.string("环境检测通过")
+                            : AppLocalization.string("环境检测失败: \(result.localizedTitle)")
+                        if !result.isSuccess { testResult += AppLocalization.string("，查看下方日志") }
                         testMessage = setup.testLog
                     }
                     isTesting = false; refresh()
@@ -248,26 +248,26 @@ struct RuntimeLogsView: View {
             let response = try await thirdPartyProxy.query()
             let active = response.success && response.latitude != nil && response.longitude != nil
             testSucceeded = true
-            testResult = active ? String(localized: "第三方模块连接通过，已有坐标") : String(localized: "第三方模块连接通过，暂无坐标")
+            testResult = active ? AppLocalization.string("第三方模块连接通过，已有坐标") : AppLocalization.string("第三方模块连接通过，暂无坐标")
             testMessage = thirdPartyTestLog(active: active)
         } catch {
             testSucceeded = false
-            testResult = String(localized: "第三方模块连接失败")
+            testResult = AppLocalization.string("第三方模块连接失败")
             testMessage = thirdPartyTestLog(error: error)
         }
     }
 
     private func thirdPartyTestLog(active: Bool? = nil, error: Error? = nil) -> String {
         var lines = [
-            String(localized: "======== 第三方代理连接检测 ========"),
-            String(localized: "模式: 测试模式"),
-            String(localized: "请求: wloc-settings/save?action=query")
+            AppLocalization.string("======== 第三方代理连接检测 ========"),
+            AppLocalization.string("模式: 测试模式"),
+            AppLocalization.string("请求: wloc-settings/save?action=query")
         ]
         if let active {
-            lines.append(String(localized: "拦截响应: 有效 JSON"))
-            lines.append(String(localized: "已保存坐标: \(active ? String(localized: "是") : String(localized: "否"))"))
+            lines.append(AppLocalization.string("拦截响应: 有效 JSON"))
+            lines.append(AppLocalization.string("已保存坐标: \(active ? AppLocalization.string("是") : AppLocalization.string("否"))"))
         } else if let error {
-            lines.append(String(localized: "结果: \(error.localizedDescription)"))
+            lines.append(AppLocalization.string("结果: \(error.localizedDescription)"))
         }
         return lines.joined(separator: "\n")
     }

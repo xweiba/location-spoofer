@@ -1,5 +1,5 @@
 {
-  "latestVersion": "1.0.7",
+  "latestVersion": "1.0.8",
   "minimumSupportedVersion": "1.0.0",
   "communityPromptClients": ["surge", "quantumultX", "loon", "stash", "egern"]
 }

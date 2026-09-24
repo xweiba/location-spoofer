@@ -95,10 +95,10 @@ struct BugReportView: View {
                 do {
                     let response = try await thirdPartyProxy.query()
                     let active = response.success && response.latitude != nil && response.longitude != nil
-                    let savedCoordinate = active ? String(localized: "是") : String(localized: "否")
-                    testLog = String(localized: "第三方代理测试模式：模块连接成功；已保存坐标=\(savedCoordinate)")
+                    let savedCoordinate = active ? AppLocalization.string("是") : AppLocalization.string("否")
+                    testLog = AppLocalization.string("第三方代理测试模式：模块连接成功；已保存坐标=\(savedCoordinate)")
                 } catch {
-                    testLog = String(localized: "第三方代理测试模式：模块连接失败；\(error.localizedDescription)")
+                    testLog = AppLocalization.string("第三方代理测试模式：模块连接失败；\(error.localizedDescription)")
                 }
             } else {
                 _ = await setup.runVerificationTest()
@@ -132,21 +132,21 @@ struct BugReportView: View {
     private func bugReport(appVersion: String, systemVersion: String, testLog: String) -> String {
         let client = runtimeMode.mode == .thirdParty
             ? thirdPartyClient.selectedClient.name
-            : String(localized: "不适用")
-        let reproducible = isReproducible ? String(localized: "是") : String(localized: "否")
-        let diagnostics = testLog.isEmpty ? String(localized: "（无诊断数据）") : testLog
+            : AppLocalization.string("不适用")
+        let reproducible = isReproducible ? AppLocalization.string("是") : AppLocalization.string("否")
+        let diagnostics = testLog.isEmpty ? AppLocalization.string("（无诊断数据）") : testLog
         return """
-        ### \(String(localized: "环境信息"))
-        \(String(localized: "App 版本")): \(appVersion)
-        \(String(localized: "系统版本")): iOS \(systemVersion)
-        \(String(localized: "运行模式")): \(runtimeMode.mode.displayName)
-        \(String(localized: "第三方客户端")): \(client)
-        \(String(localized: "可复现环境")): \(reproducible)
+        ### \(AppLocalization.string("环境信息"))
+        \(AppLocalization.string("App 版本")): \(appVersion)
+        \(AppLocalization.string("系统版本")): iOS \(systemVersion)
+        \(AppLocalization.string("运行模式")): \(runtimeMode.mode.displayName)
+        \(AppLocalization.string("第三方客户端")): \(client)
+        \(AppLocalization.string("可复现环境")): \(reproducible)
 
-        ### \(String(localized: "问题描述"))
+        ### \(AppLocalization.string("问题描述"))
         \(description.trimmingCharacters(in: .whitespacesAndNewlines))
 
-        ### \(String(localized: "诊断日志"))
+        ### \(AppLocalization.string("诊断日志"))
         ```
         \(diagnostics)
         ```

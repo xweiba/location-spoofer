@@ -221,13 +221,13 @@ struct FirstSetupView: View {
         }
         guard !setup.message.isEmpty else { return nil }
         return [
-            String(localized: "======== 第三方代理运行检测 ========"),
-            String(localized: "当前客户端：\(thirdPartyClient.selectedClient.name)"),
-            String(localized: "触发来源：地图或设置中的第三方代理操作"),
-            String(localized: "请求动作：WLOC 配置接口"),
-            String(localized: "检测结果：失败"),
-            String(localized: "错误详情：\(setup.message)"),
-            String(localized: "处理建议：确认模块已启用，并检查 MITM、证书和代理/VPN 连接。")
+            AppLocalization.string("======== 第三方代理运行检测 ========"),
+            AppLocalization.string("当前客户端：\(thirdPartyClient.selectedClient.name)"),
+            AppLocalization.string("触发来源：地图或设置中的第三方代理操作"),
+            AppLocalization.string("请求动作：WLOC 配置接口"),
+            AppLocalization.string("检测结果：失败"),
+            AppLocalization.string("错误详情：\(setup.message)"),
+            AppLocalization.string("处理建议：确认模块已启用，并检查 MITM、证书和代理/VPN 连接。")
         ].joined(separator: "\n")
     }
 
@@ -354,7 +354,7 @@ struct FirstSetupView: View {
                         if let url = await setup.proxy.prepareCertificateDownloadURL() {
                             certificateDownloadDestination = CertificateDownloadDestination(url: url)
                         } else {
-                            setupActionError = setup.proxy.error ?? String(localized: "无法准备证书下载页面，请查看诊断日志")
+                            setupActionError = setup.proxy.error ?? AppLocalization.string("无法准备证书下载页面，请查看诊断日志")
                         }
                     }
                 },
@@ -468,7 +468,7 @@ struct FirstSetupView: View {
 
                     Text("返回格式")
                         .font(.subheadline.bold())
-                    Text(String(localized: """
+                    Text(AppLocalization.string("""
                     成功：{"success":true,"longitude":113.0,"latitude":22.0,"accuracy":25}
                     失败：{"success":false,"error":"错误说明"}
                     """))
@@ -565,7 +565,7 @@ struct FirstSetupView: View {
             if let thirdPartyFailureLog {
                 testResultView(
                     success: false,
-                    title: String(localized: "接口连接失败"),
+                    title: AppLocalization.string("接口连接失败"),
                     log: thirdPartyFailureLog
                 )
                 .id("thirdPartyFailureLog")
@@ -698,7 +698,7 @@ struct FirstSetupView: View {
         UIApplication.shared.open(url, options: [:]) { opened in
             guard !opened else { return }
             Task { @MainActor in
-                manualHint = String(localized: "无法打开 \(client.name)，请确认客户端已安装后手动打开。")
+                manualHint = AppLocalization.string("无法打开 \(client.name)，请确认客户端已安装后手动打开。")
             }
         }
     }
@@ -760,7 +760,7 @@ struct FirstSetupView: View {
         let success = result.isSuccess
         testResultView(
             success: success,
-            title: success ? String(localized: "环境检测通过") : failureSummary(result),
+            title: success ? AppLocalization.string("环境检测通过") : failureSummary(result),
             log: setup.testLog
         )
     }
@@ -889,17 +889,17 @@ struct FirstSetupView: View {
                     ]
                 )
                 thirdPartyTestFailure = ThirdPartyConnectionTestFailure(message: [
-                    String(localized: "======== 第三方代理连接检测 ========"),
-                    String(localized: "当前客户端：\(client.name)"),
-                    String(localized: "配置接口：/wloc-settings/save"),
-                    String(localized: "请求动作：WLOC query"),
-                    String(localized: "检查范围：模块拦截、MITM、证书、代理/VPN 连接"),
-                    String(localized: "连接状态：\(connectionState)"),
-                    String(localized: "检测结果：失败"),
-                    String(localized: "耗时：\(elapsedMilliseconds) ms"),
-                    String(localized: "错误类型：\(errorType)"),
-                    String(localized: "错误详情：\(error.localizedDescription)"),
-                    String(localized: "处理建议：\(ThirdPartyProxyError.recoverySuggestion(for: error))。")
+                    AppLocalization.string("======== 第三方代理连接检测 ========"),
+                    AppLocalization.string("当前客户端：\(client.name)"),
+                    AppLocalization.string("配置接口：/wloc-settings/save"),
+                    AppLocalization.string("请求动作：WLOC query"),
+                    AppLocalization.string("检查范围：模块拦截、MITM、证书、代理/VPN 连接"),
+                    AppLocalization.string("连接状态：\(connectionState)"),
+                    AppLocalization.string("检测结果：失败"),
+                    AppLocalization.string("耗时：\(elapsedMilliseconds) ms"),
+                    AppLocalization.string("错误类型：\(errorType)"),
+                    AppLocalization.string("错误详情：\(error.localizedDescription)"),
+                    AppLocalization.string("处理建议：\(ThirdPartyProxyError.recoverySuggestion(for: error))。")
                 ].joined(separator: "\n"))
                 showsThirdPartyFailureLog = true
             }
@@ -909,11 +909,11 @@ struct FirstSetupView: View {
     private var thirdPartyConnectionStateDescription: String {
         switch thirdPartyProxy.connectionState {
         case .unknown:
-            return String(localized: "未检测")
+            return AppLocalization.string("未检测")
         case .connected(let active):
-            return active ? String(localized: "已连接，有保存坐标") : String(localized: "已连接，无保存坐标")
+            return active ? AppLocalization.string("已连接，有保存坐标") : AppLocalization.string("已连接，无保存坐标")
         case .failed(let message):
-            return String(localized: "连接失败（\(message)）")
+            return AppLocalization.string("连接失败（\(message)）")
         }
     }
 
@@ -966,14 +966,14 @@ struct FirstSetupView: View {
 
     private func failureSummary(_ result: VerificationResult) -> String {
         switch result {
-        case .certNotTrusted: return String(localized: "证书尚未安装或信任")
-        case .wifiProxyNotConfigured: return String(localized: "Wi-Fi 代理未正确设置")
-        case .proxyNotRunning: return String(localized: "本地代理未能启动")
-        case .verificationInProgress: return String(localized: "检测仍在进行")
-        case .verificationSuperseded: return String(localized: "检测结果已过期")
-        case .coordinateWriteFailed: return String(localized: "坐标写入失败")
-        case .patchFailed: return String(localized: "定位改写检测失败")
-        case .success: return String(localized: "环境检测通过")
+        case .certNotTrusted: return AppLocalization.string("证书尚未安装或信任")
+        case .wifiProxyNotConfigured: return AppLocalization.string("Wi-Fi 代理未正确设置")
+        case .proxyNotRunning: return AppLocalization.string("本地代理未能启动")
+        case .verificationInProgress: return AppLocalization.string("检测仍在进行")
+        case .verificationSuperseded: return AppLocalization.string("检测结果已过期")
+        case .coordinateWriteFailed: return AppLocalization.string("坐标写入失败")
+        case .patchFailed: return AppLocalization.string("定位改写检测失败")
+        case .success: return AppLocalization.string("环境检测通过")
         }
     }
 

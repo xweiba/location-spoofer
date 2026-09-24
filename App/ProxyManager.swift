@@ -154,13 +154,13 @@ final class ProxyManager: ObservableObject {
         do {
             if !isRunning { try await start() }
             guard let url = URL(string: "http://127.0.0.1:8888/cert") else {
-                error = String(localized: "证书下载地址无效")
+                error = AppLocalization.string("证书下载地址无效")
                 return nil
             }
             error = nil
             return url
         } catch {
-            self.error = String(localized: "启动代理失败: \(error.localizedDescription)")
+            self.error = AppLocalization.string("启动代理失败: \(error.localizedDescription)")
             RuntimeLogger.error("APP", "Certificate", "准备证书下载失败", error: error)
             return nil
         }
@@ -182,5 +182,5 @@ struct ProxyCoordinateSnapshot: Equatable {
 
 enum ProxyError: LocalizedError {
     case startFailed
-    var errorDescription: String? { String(localized: "Go proxy 启动失败") }
+    var errorDescription: String? { AppLocalization.string("Go proxy 启动失败") }
 }

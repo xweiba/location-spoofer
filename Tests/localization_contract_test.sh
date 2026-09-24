@@ -31,6 +31,8 @@ RUBY
 
 for key in \
   '环境信息' \
+  '复制 %@' \
+  '已复制 %@' \
   '诊断日志' \
   '======== 代理验证测试 ========' \
   '======== 第三方代理连接检测 ========' \
@@ -44,7 +46,7 @@ grep -q 'localizedCategory' "$ROOT/Shared/RuntimeLog.swift" \
   || fail "runtime log categories must be localized when rendered"
 grep -q 'localizedDetailsText' "$ROOT/App/DiagnosticsView.swift" \
   || fail "runtime log details must be localized in the diagnostics UI"
-grep -q 'String(localized: "诊断日志")' "$ROOT/App/BugReportView.swift" \
+grep -q 'AppLocalization.string("诊断日志")' "$ROOT/App/BugReportView.swift" \
   || fail "generated bug reports must localize their diagnostic section"
 grep -q 'log("  " + e.localizedMessage)' "$ROOT/App/SetupCoordinator.swift" \
   || fail "bug-report verification logs must render stored messages in the active language"
@@ -54,5 +56,44 @@ if grep -R -n 'raw.githubusercontent.com/Yu9191/wloc' \
   "$ROOT/ThirdParty/WlocScripts/modules"; then
   fail "deleted Yu9191/wloc repository must not remain a runtime dependency"
 fi
+
+# Check the real Foundation lookup path, not just the existence of locale files.
+grep -q 'developmentLanguage: en' "$ROOT/project.yml" \
+  || fail "English must be the development-language fallback"
+grep -q '  - zh-Hant' "$ROOT/project.yml" \
+  || fail "Traditional Chinese must be a supported region"
+for locale in zh-Hans zh-Hant; do
+  plutil -lint "$ROOT/Resources/$locale.lproj/Localizable.strings" >/dev/null \
+    || fail "$locale localization file is invalid"
+  plutil -lint "$ROOT/Resources/$locale.lproj/InfoPlist.strings" >/dev/null \
+    || fail "$locale permission prompts are invalid"
+done
+
+ruby - "$STRINGS" "$ROOT/Resources/zh-Hans.lproj/Localizable.strings" \
+  "$ROOT/Resources/zh-Hant.lproj/Localizable.strings" <<'RUBY' || exit 1
+paths = ARGV
+keys = paths.map { |path| File.readlines(path).map { |line| line[/^"((?:\\.|[^"\\])*)"\s*=/, 1] }.compact }
+abort "FAIL: Chinese tables must cover every English key" unless keys[1] == keys[0] && keys[2] == keys[0]
+RUBY
+
+grep -Fq '"虚拟定位" = "虚拟定位";' "$ROOT/Resources/zh-Hans.lproj/Localizable.strings" \
+  || fail "Simplified Chinese must resolve the source key"
+grep -Fq '"虚拟定位" = "虛擬定位";' "$ROOT/Resources/zh-Hant.lproj/Localizable.strings" \
+  || fail "Traditional Chinese must use Traditional characters"
+
+swift - <<'SWIFT' || fail "language selection differs from expected behavior"
+import Foundation
+let available = ["en", "zh-Hans", "zh-Hant"]
+for (language, expected) in [
+    ("zh-CN", "zh-Hans"), ("zh-TW", "zh-Hant"), ("zh-HK", "zh-Hant"),
+    ("it-IT", "en"), ("fr-FR", "en")
+] {
+    let selected = Bundle.preferredLocalizations(from: available, forPreferences: [language]).first
+    guard selected == expected else {
+        fputs("FAIL: \(language) selected \(selected ?? "nil")\n", stderr)
+        exit(1)
+    }
+}
+SWIFT
 
 echo "PASS: localization and diagnostic export contract"

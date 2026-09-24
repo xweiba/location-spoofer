@@ -14,7 +14,7 @@
 [![iOS 15+](https://img.shields.io/badge/iOS-15%2B-111111?logo=apple)](project.yml)
 [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138)](project.yml)
 [![Go 1.23+](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go)](Core/go.mod)
-[![Version](https://img.shields.io/badge/version-v1.0.7-2563EB)](docs/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.0.8-2563EB)](docs/CHANGELOG.md)
 
 [功能概览](#功能概览) ·
 [工作原理](#工作原理) ·

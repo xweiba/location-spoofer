@@ -301,7 +301,7 @@ struct MapHomeView: View {
             }
         } message: {
             Text(
-                "你正在使用 \(communityContributionClient?.name ?? String(localized: "第三方客户端"))。点击“去提交”会先复制投稿模板，并在 App 内打开社区页面。采纳后将收录到 README，可选择是否匿名署名。"
+                "你正在使用 \(communityContributionClient?.name ?? AppLocalization.string("第三方客户端"))。点击“去提交”会先复制投稿模板，并在 App 内打开社区页面。采纳后将收录到 README，可选择是否匿名署名。"
             )
         }
         .alert("已复制投稿模板", isPresented: $showCommunityTemplateCopied) {
@@ -483,7 +483,7 @@ struct MapHomeView: View {
             // 当前选点
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(mapState.displayName ?? String(localized: "当前选点")).font(.subheadline.weight(.semibold)).lineLimit(1)
+                    Text(mapState.displayName ?? AppLocalization.string("当前选点")).font(.subheadline.weight(.semibold)).lineLimit(1)
                     coordinateRow(label: "GCJ-02(国内)", system: .gcj02)
                     coordinateRow(label: "WGS-84(国际)", system: .wgs84)
                 }
@@ -585,15 +585,15 @@ struct MapHomeView: View {
     private var buttonTitle: String {
         if runtimeMode.mode == .thirdParty {
             switch spoofState {
-            case .idle: return String(localized: "同步到第三方代理")
-            case .verifying: return String(localized: "检测并同步中…")
-            case .active: return String(localized: "停止第三方虚拟定位")
+            case .idle: return AppLocalization.string("同步到第三方代理")
+            case .verifying: return AppLocalization.string("检测并同步中…")
+            case .active: return AppLocalization.string("停止第三方虚拟定位")
             }
         }
         switch spoofState {
-        case .idle: return String(localized: "开始虚拟定位")
-        case .verifying: return String(localized: "验证环境中…")
-        case .active: return String(localized: "停止虚拟定位")
+        case .idle: return AppLocalization.string("开始虚拟定位")
+        case .verifying: return AppLocalization.string("验证环境中…")
+        case .active: return AppLocalization.string("停止虚拟定位")
         }
     }
 
@@ -1092,7 +1092,7 @@ struct MapHomeView: View {
                         "请求动作": "WLOC query",
                         "错误": response.error ?? "未知错误"
                     ])
-                    setup.requestThirdPartySetup(message: response.error ?? String(localized: "第三方代理查询失败"))
+                    setup.requestThirdPartySetup(message: response.error ?? AppLocalization.string("第三方代理查询失败"))
                 }
             } catch {
                 spoofState = .idle
@@ -1145,7 +1145,7 @@ struct MapHomeView: View {
                     "Wi-Fi接口": String(net.isWiFiEnabled)
                 ])
                 activeTip = nil
-                setup.requestSetup(message: String(localized: "当前未连接可用的 Wi-Fi，请连接 Wi-Fi 后配置 127.0.0.1:8888 手动代理。"))
+                setup.requestSetup(message: AppLocalization.string("当前未连接可用的 Wi-Fi，请连接 Wi-Fi 后配置 127.0.0.1:8888 手动代理。"))
                 return
             }
 
@@ -1520,7 +1520,7 @@ struct MapHomeView: View {
                 }
                 searchResults = (response?.mapItems ?? []).prefix(6).map { item in
                     let r = SearchLocationResult(
-                        name: item.name ?? String(localized: "未命名"),
+                        name: item.name ?? AppLocalization.string("未命名"),
                         subtitle: [item.placemark.locality, item.placemark.subLocality, item.placemark.thoroughfare]
                             .compactMap { $0 }
                             .filter { !$0.isEmpty }
@@ -1532,7 +1532,7 @@ struct MapHomeView: View {
                     ])
                     return r
                 }
-                if searchResults.isEmpty { searchError = String(localized: "没有找到相关地点") }
+                if searchResults.isEmpty { searchError = AppLocalization.string("没有找到相关地点") }
             }
         }
     }
