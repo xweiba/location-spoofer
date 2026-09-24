@@ -49,3 +49,4 @@ ${COMMITS}
 EOF
 
 echo "Generated $OUTPUT from $RANGE"
+echo "Before tagging, add docs/releases/${VERSION}.en.md and docs/releases/${VERSION}.zh-Hant.md."

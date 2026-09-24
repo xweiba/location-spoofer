@@ -15,7 +15,7 @@ responses in a controlled test environment.
 [![iOS 15+](https://img.shields.io/badge/iOS-15%2B-111111?logo=apple)](project.yml)
 [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138)](project.yml)
 [![Go 1.23+](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go)](Core/go.mod)
-[![Version](https://img.shields.io/badge/version-v1.0.8-2563EB)](docs/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.0.8-2563EB)](docs/CHANGELOG.en.md)
 
 [Features](#feature-overview) ·
 [How It Works](#how-it-works) ·
@@ -415,7 +415,7 @@ Paste it into the **App-generated diagnostic report** field in the GitHub Issue 
 
 - [Build guide](docs/BUILD.md)
 - [Third-party module documentation](docs/THIRD_PARTY_MODULES.md)
-- [Changelog](docs/CHANGELOG.md)
+- [Changelog](docs/CHANGELOG.en.md)
 - [中文文档](README.zh-CN.md)
 - [GitHub Issues](https://github.com/xweiba/location-spoofer/issues)
 

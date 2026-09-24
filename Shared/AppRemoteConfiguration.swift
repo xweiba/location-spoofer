@@ -153,11 +153,13 @@ enum AppRemoteConfigurationService {
         return nil
     }
 
-    static func fetchReleaseNotes(version: String) async -> String? {
+    static func fetchReleaseNotes(
+        version: String, language: String = AppLocalization.identifier
+    ) async -> String? {
         let session = makeSession()
         defer { session.finishTasksAndInvalidate() }
 
-        for url in releaseNotesURLs(version: version) {
+        for url in releaseNotesURLs(version: version, language: language) {
             var request = URLRequest(url: url)
             request.timeoutInterval = 1.5
 
@@ -166,7 +168,7 @@ enum AppRemoteConfigurationService {
                 guard let httpResponse = response as? HTTPURLResponse,
                       httpResponse.statusCode == 200,
                       let markdown = String(data: data, encoding: .utf8),
-                      let summary = releaseNotesSummary(markdown) else {
+                      let summary = releaseNotesSummary(markdown, language: language) else {
                     continue
                 }
                 return summary
@@ -185,8 +187,17 @@ enum AppRemoteConfigurationService {
         return nil
     }
 
-    static func releaseNotesURLs(version: String) -> [URL] {
-        let path = "https://raw.githubusercontent.com/xweiba/location-spoofer/main/docs/releases/v\(version).md"
+    static func releaseNotesURLs(
+        version: String, language: String = AppLocalization.identifier
+    ) -> [URL] {
+        // The unsuffixed archive remains Simplified Chinese for older clients.
+        let suffix: String
+        switch language {
+        case "zh-Hans": suffix = ""
+        case "zh-Hant": suffix = ".zh-Hant"
+        default: suffix = ".en"
+        }
+        let path = "https://raw.githubusercontent.com/xweiba/location-spoofer/main/docs/releases/v\(version)\(suffix).md"
         return [
             URL(string: "https://gh-proxy.org/\(path)")!,
             URL(string: path)!
@@ -202,12 +213,14 @@ enum AppRemoteConfigurationService {
         return URLSession(configuration: sessionConfiguration)
     }
 
-    private static func releaseNotesSummary(_ markdown: String) -> String? {
+    static func releaseNotesSummary(_ markdown: String, language: String) -> String? {
         var items: [String] = []
         var inMainUpdates = false
         for rawLine in markdown.components(separatedBy: .newlines) {
             let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-            if line == "## 主要更新" {
+            let heading = language == "zh-Hans" || language == "zh-Hant"
+                ? "## 主要更新" : "## Highlights"
+            if line == heading {
                 inMainUpdates = true
                 continue
             }

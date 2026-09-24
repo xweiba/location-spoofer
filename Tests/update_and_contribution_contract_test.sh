@@ -54,8 +54,16 @@ grep -q 'static let configurationURLs = \[' "$CONFIG" \
   || fail "update detection must retain multiple configuration sources"
 ! grep -q 'data.count' "$CONFIG" \
   || fail "the client must not impose a remote configuration file-size limit"
-grep -q 'docs/releases/v\\(version).md' "$CONFIG" \
-  || fail "update notes must come from the archived release document"
+grep -Fq 'docs/releases/v\(version)\(suffix).md' "$CONFIG" \
+  || fail "update notes must come from the language-specific archived release document"
+for locale in '' .en .zh-Hant; do
+  test -s "$ROOT/docs/releases/v${LATEST_VERSION}${locale}.md" \
+    || fail "missing localized v${LATEST_VERSION}${locale} release notes"
+done
+grep -Fq '## Highlights' "$ROOT/docs/releases/v${LATEST_VERSION}.en.md" \
+  || fail "English update highlights are missing"
+grep -Fq '## 主要更新' "$ROOT/docs/releases/v${LATEST_VERSION}.zh-Hant.md" \
+  || fail "Traditional Chinese update highlights are missing"
 grep -q '/releases/latest' "$CONFIG" \
   || fail "missing release notes must fall back to the latest Release page"
 grep -q '.task { await checkForUpdates() }' "$CONTENT" \

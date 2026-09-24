@@ -2,6 +2,8 @@
 
 各版本发布说明见 `docs/releases/` 目录。
 
+[English](CHANGELOG.en.md) · [繁體中文](CHANGELOG.zh-Hant.md)
+
 ## 已发布
 
 - [v1.0.8](https://github.com/xweiba/location-spoofer/releases/tag/v1.0.8) — 2026-09-24
