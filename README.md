@@ -12,6 +12,12 @@ responses in a controlled test environment.
 > ⚠️ **Compatibility notice (updated 2026-11-08): MITM interception failures have been reported across multiple iOS
 > versions, beyond iOS 27 betas.**
 >
+> **This project does not guarantee availability.** Neither App Mode nor Third-party Proxy Mode is guaranteed to work
+> on any particular iOS version, device, or network, or to remain functional. The versions below are reported cases,
+> not a complete list of affected versions. An unlisted version, a successful past test, or a currently working device
+> does not establish guaranteed availability. Postponing restarts or updates cannot guarantee continued operation,
+> and future recovery or compatibility fixes are not promised.
+>
 > According to the upstream [Yu9191/wloc notice](https://github.com/Yu9191/wloc#readme), users began reporting sudden
 > MITM failures for `gs-loc.apple.com` / `gs-loc-cn.apple.com` on 2026-11-04, with invalid or untrusted certificate errors:
 >
