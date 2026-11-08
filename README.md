@@ -9,8 +9,36 @@ An open-source project for **iOS location-service research, software development
 The project uses either an on-device proxy or a third-party proxy client to simulate selected Apple location-service
 responses in a controlled test environment.
 
-> ⚠️ **Starting with iOS 27 beta 6, the system blocks MITM interception of `gs-loc.apple.com`.** This project is
-> temporarily unusable on that version and later betas until a workaround is found.
+> ⚠️ **Compatibility notice (updated 2026-11-08): MITM interception failures have been reported across multiple iOS
+> versions, beyond iOS 27 betas.**
+>
+> According to the upstream [Yu9191/wloc notice](https://github.com/Yu9191/wloc#readme), users began reporting sudden
+> MITM failures for `gs-loc.apple.com` / `gs-loc-cn.apple.com` on 2026-11-04, with invalid or untrusted certificate errors:
+>
+> - iOS 26.2.1, 26.5, 26.7, and 26.7.2: [upstream #121](https://github.com/Yu9191/wloc/issues/121), [upstream #123](https://github.com/Yu9191/wloc/issues/123);
+> - iOS 18.5, 18.7.1, and 18.7.7: [upstream #122](https://github.com/Yu9191/wloc/issues/122).
+>
+> Some users had not updated iOS; others noticed the failure after restarting their devices. The same CA may still work
+> for ordinary domains, so passing this project's environment check does not establish that Apple location-service
+> interception still works. Both App Mode and Third-party Proxy Mode depend on this interception and may be affected.
+>
+> **Investigation lead, not independently verified by this project:** The reporter of
+> [upstream #130](https://github.com/Yu9191/wloc/issues/130) found that a jailbroken iOS 16.6 device automatically updated
+> its `trustd` / `pinningrules` certificate rules on November 4, requiring Apple-issued certificates for these two domains.
+> This finding comes from one device and does not establish the cause on every device or the full scope of affected systems.
+>
+> **Interim advice:** If interception still works, consider postponing device restarts and iOS updates; this cannot
+> guarantee continued compatibility. If it has failed, add your full iOS version, App / proxy-client versions, update or
+> restart history, sanitized logs, and error screenshots to an existing relevant issue rather than opening duplicates.
+> This project currently has no verified general recovery method.
+
+> ⚠️ **Upstream reports that, starting with iOS 27 beta 6, Apple location-service TLS validation rejects certificates
+> issued by non-Apple CAs.**
+>
+> Upstream testing on beta 8 confirmed that requests still reach the system proxy, but `locationd` rejects the certificate
+> even when the CA is manually fully trusted. Moving MITM to a router, transparent gateway, or another tool does not
+> resolve this certificate-validation restriction; see [upstream #113](https://github.com/Yu9191/wloc/issues/113).
+> Devices subject to this restriction cannot use this project's location-response simulation.
 
 [![iOS 15+](https://img.shields.io/badge/iOS-15%2B-111111?logo=apple)](project.yml)
 [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138)](project.yml)
@@ -229,8 +257,8 @@ Current client status:
 Community configurations are reviewed by client. Accepted submissions are linked in this table with attribution unless
 the contributor requests anonymous inclusion.
 
-Modules and scripts are now hosted by this repository. The original
-`Yu9191/wloc` repository was deleted and remains attribution only, not a runtime dependency:
+Modules and scripts are hosted by this repository without depending on upstream runtime URLs. See
+[Yu9191/wloc](https://github.com/Yu9191/wloc) for upstream compatibility notices:
 
 - [Third-party module documentation](docs/THIRD_PARTY_MODULES.md)
 
@@ -294,8 +322,10 @@ Third-party Proxy Mode:
 2. Disable the corresponding module or proxy in the third-party client;
 3. Restore HTTPS decryption and proxy settings according to the client documentation.
 
-Location caches may take time to refresh. Restart the device if the system or target app continues to show an old
-location.
+Location caches may take time to refresh. Read the compatibility notice at the top before restarting: users have reported
+that Apple location-service MITM interception stopped working after a restart. Consider postponing restarts while
+interception still works. If you restart to restore the real location, location-response simulation may no longer work
+afterward.
 
 ## Coordinate Handling
 
@@ -451,7 +481,7 @@ guarantee for every app or release.
 ## Acknowledgements and Links
 
 The core location-response handling approach, Go implementation, and third-party modules are based on
-the following projects (`Yu9191/wloc` has since been deleted):
+the following projects:
 
 - [Yu9191/wloc](https://github.com/Yu9191/wloc)
 - [ios-location-spoofer](https://github.com/mekos2772/ios-location-spoofer)
